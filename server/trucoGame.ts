@@ -266,6 +266,7 @@ export class TrucoGame extends EventEmitter {
     // Store player's username before they're removed
     const player = this.gameState.players.find(p => p.id === playerId);
     if (player) {
+      // Use Map.set to store the player's username
       this.disconnectedPlayers.set(playerId, player.username);
     }
     
@@ -292,10 +293,8 @@ export class TrucoGame extends EventEmitter {
     // Check if there's a disconnected player with this username
     let foundPlayerId: string | null = null;
     
-    // Alternative approach to avoid iterator issues
-    const disconnectedIds = [...this.disconnectedPlayers.keys()];
-    for (const playerId of disconnectedIds) {
-      const playerName = this.disconnectedPlayers.get(playerId);
+    // Iterate over Map entries with downlevelIteration enabled in tsconfig
+    for (const [playerId, playerName] of this.disconnectedPlayers.entries()) {
       if (playerName === username) {
         foundPlayerId = playerId;
         break;
@@ -355,6 +354,7 @@ export class TrucoGame extends EventEmitter {
   }
   
   public getConnectedPlayerCount(): number {
-    return this.gameState.players.filter(p => !p.isDisconnected).length;
+    // Use optional chaining to safely handle the case where isDisconnected might be undefined
+    return this.gameState.players.filter(p => !p?.isDisconnected).length;
   }
 }

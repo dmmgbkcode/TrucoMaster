@@ -33,7 +33,7 @@ interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const { socket } = useSocket();
+  const { socket, clearGameData } = useSocket();
   const { playHit, playSuccess } = useAudio();
   
   // Listen for game updates
@@ -121,8 +121,14 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       gameId: gameState.id
     });
     
+    // Clear game state
     setGameState(null);
     setChatMessages([]);
+    
+    // Clear reconnection data
+    clearGameData();
+    
+    toast.success('Você saiu do jogo');
   };
   
   return (

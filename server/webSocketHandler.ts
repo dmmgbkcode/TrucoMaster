@@ -9,7 +9,16 @@ import { log, logDebug, logError } from './logger';
 const gameManager = new GameManager();
 
 export function setupWebSocketServer(server: HttpServer): void {
-  const io = new Server(server);
+  const io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    },
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    transports: ['websocket', 'polling'],
+    allowUpgrades: true
+  });
   
   // Middleware for logging
   io.use((socket, next) => {

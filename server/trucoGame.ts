@@ -24,6 +24,7 @@ export class TrucoGame extends EventEmitter {
   public gameState: GameState;
   private chatMessages: ChatMessage[] = [];
   private playerNames: Map<string, string> = new Map();
+  private disconnectedPlayers: Map<string, string> = new Map(); // Map of disconnected player IDs to usernames
   
   constructor(id: string, mode: GameMode) {
     super();
@@ -257,5 +258,100 @@ export class TrucoGame extends EventEmitter {
   
   public getPlayerCount(): number {
     return this.gameState.players.length;
+  }
+  
+  // Disconnection and Reconnection handling
+  
+  public markPlayerDisconnected(playerId: string): void {
+    // Store player's username before they're removed
+    const player = this.gameState.players.find(p => p.id === playerId);
+    if (player) {
+      this.disconnectedPlayers.set(playerId, player.username);
+    }
+    
+    // If game is in progress, don't remove immediately, just mark as disconnected
+    if (this.gameState.roundState === RoundState.PLAYING) {
+      // Don't remove - just update the game state to reflect disconnection
+      const updatedPlayers = this.gameState.players.map(p => 
+        p.id === playerId ? { ...p, isDisconnected: true } : p
+      );
+      
+      this.gameState = {
+        ...this.gameState,
+        players: updatedPlayers
+      };
+      
+      this.emitGameUpdate();
+    } else {
+      // If game isn't in active play, it's safe to remove
+      this.removePlayer(playerId);
+    }
+  }
+  
+  public reconnectPlayer(socketId: string, username: string): boolean {
+    // Check if there's a disconnected player with this username
+    let foundPlayerId: string | null = null;
+    
+    for (const [playerId, playerName] of this.disconnectedPlayers.entries()) {
+      if (playerName === username) {
+        foundPlayerId = playerId;
+        break;
+      }
+    }
+    
+    if (foundPlayerId) {
+      // Update the player's socket ID and mark as reconnected
+      const updatedPlayers = this.gameState.players.map(p => {
+        if (p.username === username) {
+          return { 
+            ...p, 
+            id: socketId,
+            isDisconnected: false
+          };
+        }
+        return p;
+      });
+      
+      // Replace old player ID with new socket ID in all necessary places
+      let currentPlayer = this.gameState.currentPlayer;
+      if (currentPlayer === foundPlayerId) {
+        currentPlayer = socketId;
+      }
+      
+      let dealer = this.gameState.dealer;
+      if (dealer === foundPlayerId) {
+        dealer = socketId;
+      }
+      
+      let trucoRequestedBy = this.gameState.trucoRequestedBy;
+      if (trucoRequestedBy === foundPlayerId) {
+        trucoRequestedBy = socketId;
+      }
+      
+      // Update game state with new socket ID
+      this.gameState = {
+        ...this.gameState,
+        players: updatedPlayers,
+        currentPlayer,
+        dealer,
+        trucoRequestedBy
+      };
+      
+      // Remove from disconnected players map
+      this.disconnectedPlayers.delete(foundPlayerId);
+      
+      // Update player name map with new socket ID
+      this.playerNames.delete(foundPlayerId);
+      this.playerNames.set(socketId, username);
+      
+      this.emitGameUpdate();
+      return true;
+    }
+    
+    return false;
+  }
+  
+  public getConnectedPlayerCount(): number {
+    return this.gameState.players.filter(p => !p.isDisconnected).length;
   }
 }

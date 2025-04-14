@@ -55,7 +55,7 @@ export class GameManager extends EventEmitter {
         mode,
         players: players.map(p => p.id),
         maxPlayers: mode === GameMode.ONE_VS_ONE ? 2 : 4,
-        status: roundState === 'WAITING_FOR_PLAYERS' ? 'waiting' : 
+        status: roundState === 'waiting_for_players' ? 'waiting' : 
                 players.length < (mode === GameMode.ONE_VS_ONE ? 2 : 4) ? 'waiting' : 'playing',
         createdAt: Date.now() // Ideally this would be stored when creating the game
       };

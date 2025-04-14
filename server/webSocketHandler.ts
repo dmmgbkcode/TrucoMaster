@@ -285,13 +285,21 @@ export function setupWebSocketServer(server: HttpServer): void {
         // Find all games this player is in
         const playerGames = gameManager.getGamesByPlayerId(socket.id);
         
-        // Remove player from all games
+        // Mark player as disconnected but don't remove immediately
+        // This allows players to reconnect to their games
         playerGames.forEach(game => {
-          game.removePlayer(socket.id);
+          // Only mark disconnected, don't remove immediately
+          game.markPlayerDisconnected(socket.id);
           
-          // If game is empty, remove it
-          if (game.getPlayerCount() === 0) {
-            gameManager.removeGame(game.gameState.id);
+          // If game is empty (all players disconnected), remove it after timeout
+          if (game.getConnectedPlayerCount() === 0) {
+            setTimeout(() => {
+              // Double check if still empty after timeout
+              if (game.getConnectedPlayerCount() === 0) {
+                gameManager.removeGame(game.gameState.id);
+                io.emit('rooms_update', gameManager.getPublicRooms());
+              }
+            }, 60000); // 1 minute timeout to remove empty games
           }
         });
         
@@ -301,6 +309,58 @@ export function setupWebSocketServer(server: HttpServer): void {
         }
       } catch (error) {
         log(`Error handling disconnect: ${error}`, 'error');
+      }
+    });
+    
+    // Handle reconnection
+    socket.on('reconnect_game', (data: { username: string, gameId: string }) => {
+      try {
+        const { username, gameId } = data;
+        if (!username || !gameId) {
+          socket.emit(ActionType.ERROR, { message: 'Username and game ID are required' });
+          return;
+        }
+        
+        // Get the game
+        const game = gameManager.getGame(gameId);
+        if (!game) {
+          socket.emit(ActionType.ERROR, { message: 'Game not found' });
+          return;
+        }
+        
+        // Try to reconnect player
+        const reconnected = game.reconnectPlayer(socket.id, username);
+        if (!reconnected) {
+          // If player wasn't previously in the game, try to add them as new
+          const player = game.addPlayer(socket.id, username);
+          if (!player) {
+            socket.emit(ActionType.ERROR, { message: 'Failed to join game' });
+            return;
+          }
+        }
+        
+        // Join socket room
+        socket.join(gameId);
+        
+        // Send current game state to reconnected player
+        socket.emit(ActionType.GAME_UPDATE, game.gameState);
+        
+        // Send chat history
+        const chatMessages = game.getChatMessages();
+        chatMessages.forEach(message => {
+          socket.emit('chat_message', message);
+        });
+        
+        // Update all clients about the reconnection
+        io.to(gameId).emit(ActionType.GAME_UPDATE, game.gameState);
+        
+        // Update available rooms
+        io.emit('rooms_update', gameManager.getPublicRooms());
+        
+        log(`Player ${username} (${socket.id}) reconnected to game ${gameId}`, 'game');
+      } catch (error) {
+        socket.emit(ActionType.ERROR, { message: 'Failed to reconnect to game' });
+        log(`Error reconnecting to game: ${error}`, 'error');
       }
     });
   });

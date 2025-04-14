@@ -40,6 +40,7 @@ export interface Player {
   team: 'A' | 'B';
   isReady: boolean;
   isYourTurn: boolean;
+  isDisconnected?: boolean;
 }
 
 // Round state

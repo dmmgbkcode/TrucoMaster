@@ -292,7 +292,10 @@ export class TrucoGame extends EventEmitter {
     // Check if there's a disconnected player with this username
     let foundPlayerId: string | null = null;
     
-    for (const [playerId, playerName] of this.disconnectedPlayers.entries()) {
+    // Alternative approach to avoid iterator issues
+    const disconnectedIds = [...this.disconnectedPlayers.keys()];
+    for (const playerId of disconnectedIds) {
+      const playerName = this.disconnectedPlayers.get(playerId);
       if (playerName === username) {
         foundPlayerId = playerId;
         break;

@@ -390,7 +390,7 @@ export function declineTrucoRequest(gameState: GameState): GameState {
   const requestingPlayer = gameState.players.find(p => p.id === gameState.trucoRequestedBy);
   if (!requestingPlayer) return gameState;
   
-  // The opposing team wins the round
+  // The team that requested truco wins when the other team declines
   const winningTeam = requestingPlayer.team === 'A' ? 'A' : 'B';
   
   let teamAScore = gameState.teamAScore;

@@ -58,6 +58,12 @@ const GameControls: React.FC<GameControlsProps> = ({ className }) => {
     }
   };
   
+  // Get current truco value for display
+  const getCurrentTrucoValue = () => {
+    if (!gameState) return 1;
+    return gameState.roundValue;
+  };
+  
   // Handle ready button click
   const handleReady = () => {
     if (!socket || !gameState) return;
@@ -215,10 +221,37 @@ const GameControls: React.FC<GameControlsProps> = ({ className }) => {
     );
   }
   
+  // Render round over state (including when someone runs from truco)
+  if (gameState?.roundState === RoundState.ROUND_OVER) {
+    const winnerTeam = gameState.roundWinner === 'A' ? 'Time A' : 'Time B';
+    
+    return (
+      <div className={cn("flex flex-col gap-2 items-center", className)}>
+        <div className="text-lg font-bold text-center">
+          {winnerTeam} venceu a rodada!
+        </div>
+        <Button 
+          onClick={() => {
+            if (!socket || !gameState) return;
+            socket.emit('start_new_round', { gameId: gameState.id });
+          }}
+          variant="default"
+        >
+          Próxima Rodada
+        </Button>
+      </div>
+    );
+  }
+  
   // Render normal controls during play
   return (
-    <div className={cn("flex gap-2 justify-center", className)}>
-      {renderTrucoRequest()}
+    <div className={cn("flex flex-col gap-2 items-center", className)}>
+      <div className="text-sm text-yellow-400 mb-1">
+        Valor da rodada: {getCurrentTrucoValue()}
+      </div>
+      <div className="flex gap-2 justify-center">
+        {renderTrucoRequest()}
+      </div>
     </div>
   );
 };

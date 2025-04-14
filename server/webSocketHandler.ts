@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { GameManager } from './gameManager';
 import { ActionType, GameMode, GameRoom } from '@shared/types';
 import { v4 as uuidv4 } from 'uuid';
-import { log } from './vite';
+import { log, logDebug, logError } from './logger';
 
 // Initialize the game manager
 const gameManager = new GameManager();
@@ -13,12 +13,20 @@ export function setupWebSocketServer(server: HttpServer): void {
   
   // Middleware for logging
   io.use((socket, next) => {
-    log(`Socket connected: ${socket.id}`, 'socket');
+    log(`Socket middleware: ${socket.id}`, 'socket');
     next();
   });
 
   io.on('connection', (socket: Socket) => {
-    log(`Client connected: ${socket.id}`, 'socket');
+    log(`Client connected: ${socket.id} (transport: ${socket.conn.transport.name})`, 'socket');
+    
+    // Log handshake details
+    log(`Client headers: ${JSON.stringify(socket.handshake.headers)}`, 'socket-debug');
+    
+    // Log transport changes
+    socket.conn.on('upgrade', (transport) => {
+      log(`Transport upgraded: ${socket.id} (${transport.name})`, 'socket-debug');
+    });
 
     // Send available rooms to new client
     socket.emit('rooms_update', gameManager.getPublicRooms());
@@ -278,9 +286,14 @@ export function setupWebSocketServer(server: HttpServer): void {
     });
 
     // Handle disconnections
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       try {
-        log(`Client disconnected: ${socket.id}`, 'socket');
+        log(`Client disconnected: ${socket.id}, reason: ${reason}`, 'socket');
+        
+        // Log more diagnostic information
+        if (reason === 'transport error' || reason === 'transport close') {
+          log(`Transport issue: ${socket.conn.transport.name}, readyState: ${socket.conn.readyState}`, 'socket-debug');
+        }
         
         // Find all games this player is in
         const playerGames = gameManager.getGamesByPlayerId(socket.id);

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Card as CardType } from '@shared/types';
+import { Card as CardType, RoundState } from '@shared/types';
 import Card from './Card';
 import { cn } from '@/lib/utils';
 import { useAudio } from '@/lib/stores/useAudio';
@@ -25,12 +25,18 @@ const Hand: React.FC<HandProps> = ({ cards, playerId, onPlayCard, className }) =
 
   // Check if card is playable
   const isCardPlayable = (card: CardType) => {
-    return isPlayerTurn && gameState?.roundState === 'PLAYING';
+    // Player can play if:
+    // 1. It's their turn AND
+    // 2. The game is in playing state AND
+    // 3. No truco has been requested or the player is the one who requested it
+    return isPlayerTurn && 
+           gameState?.roundState === RoundState.PLAYING && 
+           (!gameState?.trucoRequested || gameState?.trucoRequestedBy === playerId);
   };
 
   // Handle card play
   const handlePlayCard = (card: CardType) => {
-    if (!isPlayerTurn) return;
+    if (!isCardPlayable(card)) return;
     playHit();
     onPlayCard(card);
   };

@@ -103,11 +103,15 @@ const GameControls: React.FC<GameControlsProps> = ({ className }) => {
         gameId: gameState.id
       });
       playSuccess();
+      // Reset truco request state
+      setTrucoRequested(false);
     } else {
       socket.emit(ActionType.DECLINE_TRUCO, {
         gameId: gameState.id
       });
       playHit();
+      // Reset truco request state
+      setTrucoRequested(false);
     }
   };
   

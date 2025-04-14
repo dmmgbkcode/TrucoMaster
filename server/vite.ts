@@ -71,7 +71,10 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+  // Mudança importante aqui: verificar o ambiente e usar o caminho correto
+  const distPath = process.env.NODE_ENV === 'production'
+    ? path.resolve(process.cwd(), "dist", "client")
+    : path.resolve(__dirname, "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
